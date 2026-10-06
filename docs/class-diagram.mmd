@@ -1,0 +1,48 @@
+classDiagram
+
+    class TransactionType {
+        <<enumeration>>
+        Income
+        Expense
+    }
+
+    class Transaction {
+        +Guid Id
+        +DateTimeOffset Timestamp
+        +TransactionType Type
+        +string Description
+        +decimal Amount
+        +Category Category
+    }
+
+    class TransactionAddedEventArgs {
+        +Transaction Transaction
+    }
+
+    class StorageService {
+        -string dataDirectory
+        +SaveTransaction(Transaction) void
+        +LoadRange(DateOnly, DateOnly) IEnumerable~Transaction~
+        +RemoveById(Guid) bool
+    }
+
+    class TransactionService {
+        -StorageService storage
+        +TransactionAdded event
+        +Add(TransactionType, string, decimal, Category) Transaction
+        +Remove(Guid) bool
+        +Query(DateOnly, DateOnly) IEnumerable~Transaction~
+    }
+
+    class LoggerService {
+        -string logFilePath
+        +LoggerService(TransactionService, string)
+        -OnTransactionAdded(object?, TransactionAddedEventArgs) void
+    }
+
+    TransactionService --> StorageService : uses
+    TransactionService ..> Transaction : creates
+    TransactionService ..> TransactionAddedEventArgs : raises
+    LoggerService ..> TransactionService : subscribes
+    StorageService ..> Transaction : JSON Serialisation
+    Transaction --> TransactionType : uses
