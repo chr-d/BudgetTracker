@@ -1,3 +1,7 @@
 namespace BudgetTracker.Models;
 
-public enum TransactionType { }
+public enum TransactionType
+{
+    Income,
+    Expense,
+}
