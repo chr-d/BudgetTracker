@@ -17,13 +17,8 @@ public class TransactionService(StorageService storage)
         throw new NotImplementedException();
     }
 
-    public bool Remove(Guid id)
-    {
-        throw new NotImplementedException();
-    }
+    public bool Remove(Guid id) => _storage.RemoveById(id);
 
-    public IEnumerable<Transaction> Query(DateOnly from, DateOnly to)
-    {
-        throw new NotImplementedException();
-    }
+    public IEnumerable<Transaction> Query(DateOnly from, DateOnly to) =>
+        _storage.LoadRange(from, to).OrderBy(t => t.Timestamp);
 }

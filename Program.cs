@@ -15,10 +15,10 @@ Transaction transaction = new(
 
 // storageService.SaveTransaction(transaction);
 
-// var removed = storageService.RemoveById(Guid.Parse("26683a58-6e82-437f-b0f1-a49e78a5fe17"));
-// Console.WriteLine(removed);
+var removed = transactionService.Remove(Guid.Parse("26683a58-6e82-437f-b0f1-a49e78a5fe17"));
+Console.WriteLine(removed);
 
-var transactions = storageService.LoadRange(new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 9));
+var transactions = transactionService.Query(new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 9));
 
 foreach (var t in transactions)
 {
