@@ -65,8 +65,9 @@ public class StorageService
                 transactions = ReadFile(path);
             }
             catch (Exception ex)
-                when (ex is IOException || ex is UnauthorizedAccessException || ex is JsonException)
+                when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
+                Console.WriteLine($"Warning: could not read {path} - skipping it: {ex.Message}");
                 continue;
             }
 
