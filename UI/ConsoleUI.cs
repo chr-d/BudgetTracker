@@ -107,7 +107,37 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
 
     private void RemoveTransaction()
     {
-        throw new NotImplementedException();
+        _console.Write(new Rule("[bold cyan]Remove a transaction[/]"));
+
+        string input = _console.Prompt(
+            new TextPrompt<string>("[yellow]Transaction ID[/]:")
+                .AllowEmpty()
+                .Validate(s =>
+                    string.IsNullOrWhiteSpace(s) || Guid.TryParse(s, out Guid result)
+                        ? ValidationResult.Success()
+                        : ValidationResult.Error("[red]That is not a valid ID.[/]")
+                )
+        );
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            Cancelled();
+            _console.Write(new Rule());
+            return;
+        }
+
+        Guid id = Guid.Parse(input);
+
+        if (_transactionService.Remove(id))
+        {
+            _console.MarkupLine($"[green]Removed[/] transaction [grey]{id}[/].");
+            _console.Write(new Rule());
+        }
+        else
+        {
+            Warn($"No transaction with ID {id} was found.");
+            _console.Write(new Rule());
+        }
     }
 
     private void RangeReport()
