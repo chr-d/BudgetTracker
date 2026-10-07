@@ -36,7 +36,22 @@ public class StorageService
 
     public IEnumerable<Transaction> LoadRange(DateOnly from, DateOnly to)
     {
-        throw new NotImplementedException();
+        return Directory
+            .EnumerateFiles(_dataDirectory, "????-??-??.json")
+            .Where(path =>
+                DateOnly.TryParseExact(
+                    Path.GetFileNameWithoutExtension(path),
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out DateOnly day
+                )
+                && day >= from
+                && day <= to
+            )
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .Select(ReadFile)
+            .SelectMany(transactions => transactions);
     }
 
     public bool RemoveById(Guid id)
