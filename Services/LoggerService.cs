@@ -10,7 +10,7 @@ public class LoggerService
     {
         Directory.CreateDirectory(logsDirectory);
         _logFilePath = Path.Combine(logsDirectory, "transactions.log");
-        transactionService.TransactionAdded += OnTransactionAdded;
+        // transactionService.TransactionAdded += OnTransactionAdded;
     }
 
     private void OnTransactionAdded(object? sender, TransactionAddedEventArgs e)

@@ -13,14 +13,18 @@ Transaction transaction = new(
     9.99m
 );
 
-// storageService.SaveTransaction(transaction);
+var newTransaction = transactionService.Add(TransactionType.Income, "Test", 9.99m);
 
-var removed = transactionService.Remove(Guid.Parse("26683a58-6e82-437f-b0f1-a49e78a5fe17"));
+Console.WriteLine($"Transaction added with ID: {newTransaction.Id}");
+
+var removed = transactionService.Remove(Guid.Parse("346611c3-30a6-48f4-acc4-349c179468aa"));
 Console.WriteLine(removed);
 
 var transactions = transactionService.Query(new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 9));
 
 foreach (var t in transactions)
 {
-    Console.WriteLine($"{t.Timestamp:yyyy-MM-dd} [{t.Type}] {t.Description} {t.Amount}");
+    Console.WriteLine(
+        $"{t.Timestamp:yyyy-MM-dd HH:mm} [{t.Type}] {t.Description} {t.Amount} ({t.Id})"
+    );
 }

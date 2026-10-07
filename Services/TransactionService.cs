@@ -14,7 +14,34 @@ public class TransactionService(StorageService storage)
 
     public Transaction Add(TransactionType type, string description, decimal amount)
     {
-        throw new NotImplementedException();
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            throw new ArgumentNullException(
+                nameof(description),
+                "The description cannot be empty."
+            );
+        }
+
+        if (amount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(amount),
+                "The amount must be greater than zero."
+            );
+        }
+
+        Transaction transaction = new(
+            Id: Guid.NewGuid(),
+            Timestamp: DateTimeOffset.Now,
+            Type: type,
+            Description: description.Trim(),
+            Amount: amount
+        );
+
+        _storage.SaveTransaction(transaction);
+        OnTransactionAdded(new TransactionAddedEventArgs(transaction));
+
+        return transaction;
     }
 
     public bool Remove(Guid id) => _storage.RemoveById(id);
