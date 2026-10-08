@@ -20,6 +20,8 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
 
     public void Run()
     {
+        _console.Clear();
+        ShowIntro();
         while (true)
         {
             MenuAction choice;
@@ -65,7 +67,9 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
             }
         }
 
-        _console.MarkupLine("[bold cyan]Goodbye - Thanks for using the app![/]");
+        _console.MarkupLine(
+            "[bold cyan]Goodbye - Thanks for using[/] [bold yellow]Coin Counter![/]"
+        );
     }
 
     // Menu actions
@@ -164,6 +168,7 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
 
         string title = $"Transactions from {Day(from)} to {Day(to)}";
 
+        _console.WriteLine();
         _console.Write(BuildTransactionTable(rows, title));
         ShowTotals(rows);
     }
@@ -177,6 +182,20 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
             MenuAction.RangeReport => "Generate Report",
             _ => "Exit",
         };
+
+    private void ShowIntro()
+    {
+        _console.Write(
+            new FigletText("Coin Counter") { Justification = Justify.Center }.Color(Color.Yellow)
+        );
+
+        _console.Write(
+            new Rule(
+                "[bold yellow]Coin Counter[/] - Never let your bank account hit Game Over!"
+            ).Centered()
+        );
+        _console.WriteLine();
+    }
 
     // Style helpers
     private void Warn(string text) => _console.MarkupLine($"[yellow]{Markup.Escape(text)}[/]");
@@ -232,20 +251,25 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
         string balanceColor = balance < 0 ? "red" : "green";
 
         _console.Write(new Rule("[grey]Totals[/]"));
-        _console.MarkupLine($"[bold]Total income[/]   [green]{Money(totalIncome)}[/]");
-        _console.MarkupLine($"[bold]Total expenses[/] [red]{Money(totalExpenses)}[/]");
-        _console.MarkupLine(
+        var table = new Table().HideHeaders().Border(TableBorder.None);
+        table.AddColumn(new TableColumn(""));
+        table.AddColumn(new TableColumn("").RightAligned());
+        table.AddRow($"[bold]Total income[/]", $"[green]{Money(totalIncome)}[/]");
+        table.AddRow($"[bold]Total expenses[/]", $"[red]{Money(totalExpenses)}[/]");
+        table.AddRow(
+            $"[bold]Balance[/]",
             string.Create(
                 CultureInfo.InvariantCulture,
-                $"[bold]Balance[/]        [{balanceColor}]{(balance < 0 ? "-" : string.Empty)}{Math.Abs(balance):N2} €[/]"
+                $"[{balanceColor}]{(balance < 0 ? "-" : string.Empty)}{Math.Abs(balance):N2}€[/]"
             )
         );
+        _console.Write(table);
         _console.Write(new Rule());
     }
 
     // Format helpers
     private static string Money(decimal amount) =>
-        string.Create(CultureInfo.InvariantCulture, $"{amount:F2} €");
+        string.Create(CultureInfo.InvariantCulture, $"{amount:N2}€");
 
     private static string Day(DateOnly date) =>
         date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
