@@ -142,7 +142,30 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
 
     private void RangeReport()
     {
-        throw new NotImplementedException();
+        _console.Write(new Rule("[bold cyan]Report for a date range[/]"));
+
+        if (PromptDateRange() is not { } range)
+        {
+            Cancelled();
+            _console.Write(new Rule());
+            return;
+        }
+
+        (DateOnly from, DateOnly to) = range;
+
+        List<Transaction> rows = _transactionService.Query(from, to).ToList();
+
+        if (rows.Count == 0)
+        {
+            Warn("No transactions found in this range.");
+            _console.Write(new Rule());
+            return;
+        }
+
+        string title = $"Transactions from {Day(from)} to {Day(to)}";
+
+        _console.Write(BuildTransactionTable(rows, title));
+        ShowTotals(rows);
     }
 
     // Menu helpers
@@ -162,9 +185,73 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
 
     private void Cancelled() => Warn("Cancelled by user - returning to the menu.");
 
+    private Table BuildTransactionTable(IReadOnlyList<Transaction> rows, string? title)
+    {
+        Table table = new() { Border = TableBorder.Rounded, BorderStyle = new Style(Color.Cyan) };
+
+        if (title is not null)
+        {
+            table.Title = new TableTitle($"[bold cyan]{Markup.Escape(title)}[/]");
+        }
+
+        table.AddColumn(new TableColumn("[bold cyan]Date[/]"));
+        table.AddColumn(new TableColumn("[bold cyan]Type[/]"));
+        table.AddColumn(new TableColumn("[bold cyan]Description[/]"));
+        table.AddColumn(new TableColumn("[bold cyan]Amount[/]").RightAligned());
+        table.AddColumn(new TableColumn("[bold cyan]Id[/]"));
+
+        foreach (Transaction transaction in rows)
+        {
+            bool income = transaction.Type == TransactionType.Income;
+            string color = income ? "green" : "red";
+
+            table.AddRow(
+                $"[grey]{DayAndTime(transaction.Timestamp)}[/]",
+                $"[{color}]{transaction.Type}[/]",
+                Markup.Escape(transaction.Description),
+                $"[{color}]{Money(transaction.Amount)}[/]",
+                $"[grey]{transaction.Id}[/]"
+            );
+        }
+
+        return table;
+    }
+
+    private void ShowTotals(IReadOnlyList<Transaction> transactions)
+    {
+        var totalIncome = transactions
+            .Where(t => t.Type == TransactionType.Income)
+            .Sum(t => t.Amount);
+
+        var totalExpenses = transactions
+            .Where(t => t.Type == TransactionType.Expense)
+            .Sum(t => t.Amount);
+
+        var balance = totalIncome - totalExpenses;
+
+        string balanceColor = balance < 0 ? "red" : "green";
+
+        _console.Write(new Rule("[grey]Totals[/]"));
+        _console.MarkupLine($"[bold]Total income[/]   [green]{Money(totalIncome)}[/]");
+        _console.MarkupLine($"[bold]Total expenses[/] [red]{Money(totalExpenses)}[/]");
+        _console.MarkupLine(
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"[bold]Balance[/]        [{balanceColor}]{(balance < 0 ? "-" : string.Empty)}{Math.Abs(balance):N2} €[/]"
+            )
+        );
+        _console.Write(new Rule());
+    }
+
     // Format helpers
     private static string Money(decimal amount) =>
         string.Create(CultureInfo.InvariantCulture, $"{amount:F2} €");
+
+    private static string Day(DateOnly date) =>
+        date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private static string DayAndTime(DateTimeOffset timestamp) =>
+        timestamp.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 
     // Prompt validation helpers
     private TransactionType? PromptType()
@@ -237,5 +324,64 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
         }
 
         return null;
+    }
+
+    private DateOnly? PromptDate(string label, DateOnly? earliest = null)
+    {
+        string input = _console.Prompt(
+            new TextPrompt<string>($"[yellow]{label}[/] [grey](yyyy-MM-dd)[/]:")
+                .AllowEmpty()
+                .Validate(s =>
+                {
+                    if (string.IsNullOrWhiteSpace(s))
+                    {
+                        return ValidationResult.Success();
+                    }
+
+                    if (
+                        !DateOnly.TryParseExact(
+                            s,
+                            "yyyy-MM-dd",
+                            CultureInfo.InvariantCulture,
+                            DateTimeStyles.None,
+                            out DateOnly date
+                        )
+                    )
+                    {
+                        return ValidationResult.Error(
+                            "[red]Invalid date format (eg. 2026-12-31).[/]"
+                        );
+                    }
+
+                    if (earliest is { } limit && date < limit)
+                    {
+                        return ValidationResult.Error(
+                            "[red]The end date must be on or after the start date.[/]"
+                        );
+                    }
+
+                    return ValidationResult.Success();
+                })
+        );
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        return DateOnly.ParseExact(input, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+    }
+
+    private (DateOnly From, DateOnly To)? PromptDateRange()
+    {
+        DateOnly? from = PromptDate("Start date");
+        if (from is null)
+        {
+            return null;
+        }
+
+        DateOnly? to = PromptDate("End date", earliest: from.Value);
+
+        return to is null ? null : (from.Value, to.Value);
     }
 }
