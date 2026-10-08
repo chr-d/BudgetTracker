@@ -18,7 +18,7 @@ public class LoggerService
     {
         Transaction transaction = e.Transaction;
         string log =
-            $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss} | Added | {transaction.Type} | {transaction.Description} | {transaction.Amount:F2} | {transaction.Id}";
+            $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss} | Added | {transaction.Type} | {transaction.Category} | {transaction.Description} | {transaction.Amount:F2} | {transaction.Id}";
 
         try
         {

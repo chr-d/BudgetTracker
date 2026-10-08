@@ -85,6 +85,14 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
             return;
         }
 
+        Category? category = PromptCategory();
+        if (category is null)
+        {
+            Cancelled();
+            _console.Write(new Rule());
+            return;
+        }
+
         string? description = PromptDescription();
         if (description is null)
         {
@@ -101,7 +109,12 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
             return;
         }
 
-        Transaction added = _transactionService.Add(type.Value, description, amount.Value);
+        Transaction added = _transactionService.Add(
+            type.Value,
+            description,
+            amount.Value,
+            category.Value
+        );
 
         _console.MarkupLine(
             $"[green]Added[/] {added.Type} {(added.Type is TransactionType.Income ? "[green]" : "[red]")}{Money(added.Amount)}[/] - {Markup.Escape(added.Description)}"
@@ -272,18 +285,32 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
     {
         SelectionPrompt<string> prompt = new() { Title = "[cyan]Type[/]" };
 
-        prompt.AddChoices(["Income", "Expense", "Cancel"]);
+        prompt.AddChoices([
+            .. Enum.GetValues<TransactionType>().Select(type => type.ToString()),
+            "Cancel",
+        ]);
 
         string selected = _console.Prompt(prompt);
 
         _console.MarkupLine($"[cyan]{prompt.Title}[/]: {Markup.Escape(selected)}");
 
-        return selected switch
-        {
-            "Income" => TransactionType.Income,
-            "Expense" => TransactionType.Expense,
-            _ => null,
-        };
+        return selected == "Cancel" ? null : Enum.Parse<TransactionType>(selected);
+    }
+
+    private Category? PromptCategory()
+    {
+        SelectionPrompt<string> prompt = new() { Title = "[cyan]Category[/]" };
+
+        prompt.AddChoices([
+            .. Enum.GetValues<Category>().Select(category => category.ToString()),
+            "Cancel",
+        ]);
+
+        string selected = _console.Prompt(prompt);
+
+        _console.MarkupLine($"[cyan]{prompt.Title}[/]: {Markup.Escape(selected)}");
+
+        return selected == "Cancel" ? null : Enum.Parse<Category>(selected);
     }
 
     private string? PromptDescription()

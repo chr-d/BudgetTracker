@@ -12,7 +12,12 @@ public class TransactionService(StorageService storage)
     private void OnTransactionAdded(TransactionAddedEventArgs e) =>
         TransactionAdded?.Invoke(this, e);
 
-    public Transaction Add(TransactionType type, string description, decimal amount)
+    public Transaction Add(
+        TransactionType type,
+        string description,
+        decimal amount,
+        Category category
+    )
     {
         if (string.IsNullOrWhiteSpace(description))
         {
@@ -35,7 +40,8 @@ public class TransactionService(StorageService storage)
             Timestamp: DateTimeOffset.Now,
             Type: type,
             Description: description.Trim(),
-            Amount: amount
+            Amount: amount,
+            Category: category
         );
 
         _storage.SaveTransaction(transaction);

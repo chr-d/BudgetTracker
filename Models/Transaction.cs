@@ -5,5 +5,6 @@ public record Transaction(
     DateTimeOffset Timestamp,
     TransactionType Type,
     string Description,
-    decimal Amount
+    decimal Amount,
+    Category Category
 );
