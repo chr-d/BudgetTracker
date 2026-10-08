@@ -257,9 +257,14 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
     private TransactionType? PromptType()
     {
         SelectionPrompt<string> prompt = new() { Title = "[yellow]Type[/]" };
+
         prompt.AddChoices(["Income", "Expense", "Cancel"]);
 
-        return _console.Prompt(prompt) switch
+        string selected = _console.Prompt(prompt);
+
+        _console.MarkupLine($"[yellow]{prompt.Title}[/]: {Markup.Escape(selected)}");
+
+        return selected switch
         {
             "Income" => TransactionType.Income,
             "Expense" => TransactionType.Expense,
