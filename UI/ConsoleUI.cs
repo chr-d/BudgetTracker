@@ -113,26 +113,16 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
     {
         _console.Write(new Rule("[bold cyan]Remove a transaction[/]"));
 
-        string input = _console.Prompt(
-            new TextPrompt<string>("[yellow]Transaction ID[/]:")
-                .AllowEmpty()
-                .Validate(s =>
-                    string.IsNullOrWhiteSpace(s) || Guid.TryParse(s, out Guid result)
-                        ? ValidationResult.Success()
-                        : ValidationResult.Error("[red]That is not a valid ID.[/]")
-                )
-        );
+        Guid? id = PromptTransactionId();
 
-        if (string.IsNullOrWhiteSpace(input))
+        if (id is null)
         {
             Cancelled();
             _console.Write(new Rule());
             return;
         }
 
-        Guid id = Guid.Parse(input);
-
-        if (_transactionService.Remove(id))
+        if (_transactionService.Remove(id.Value))
         {
             _console.MarkupLine($"[green]Removed[/] transaction [grey]{id}[/].");
             _console.Write(new Rule());
@@ -280,13 +270,13 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
     // Prompt validation helpers
     private TransactionType? PromptType()
     {
-        SelectionPrompt<string> prompt = new() { Title = "[yellow]Type[/]" };
+        SelectionPrompt<string> prompt = new() { Title = "[cyan]Type[/]" };
 
         prompt.AddChoices(["Income", "Expense", "Cancel"]);
 
         string selected = _console.Prompt(prompt);
 
-        _console.MarkupLine($"[yellow]{prompt.Title}[/]: {Markup.Escape(selected)}");
+        _console.MarkupLine($"[cyan]{prompt.Title}[/]: {Markup.Escape(selected)}");
 
         return selected switch
         {
@@ -299,7 +289,7 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
     private string? PromptDescription()
     {
         string input = _console.Prompt(
-            new TextPrompt<string>("[yellow]Description[/]:").AllowEmpty()
+            new TextPrompt<string>("[cyan]Description[/]:").AllowEmpty()
         );
 
         return input.Length == 0 ? null : input.Trim();
@@ -307,8 +297,10 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
 
     private decimal? PromptAmount()
     {
+        decimal amount = 0m;
+
         string input = _console.Prompt(
-            new TextPrompt<string>("[yellow]Amount[/]:")
+            new TextPrompt<string>("[cyan]Amount[/]:")
                 .AllowEmpty()
                 .Validate(s =>
                 {
@@ -317,16 +309,18 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
                         return ValidationResult.Success();
                     }
 
-                    string normalized = s.Replace(',', '.');
-
-                    return
+                    var isParsed =
                         decimal.TryParse(
-                            normalized,
+                            // HACK Replace (',', '.') allows both chars to be used as decimal symbol
+                            // but they can't be used as thousand seperator anymore
+                            s.Replace(',', '.'),
                             NumberStyles.Number,
                             CultureInfo.InvariantCulture,
-                            out decimal value
+                            out amount
                         )
-                        && value > 0
+                        && amount > 0;
+
+                    return isParsed
                         ? ValidationResult.Success()
                         : ValidationResult.Error(
                             "[red]Enter a positive number (e.g. 2500, 10.99 or 10,99).[/]"
@@ -334,31 +328,32 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
                 })
         );
 
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return null;
-        }
+        return string.IsNullOrWhiteSpace(input) ? null : amount;
+    }
 
-        string normalizedInput = input.Replace(',', '.');
-        if (
-            decimal.TryParse(
-                normalizedInput,
-                NumberStyles.Number,
-                CultureInfo.InvariantCulture,
-                out decimal result
-            )
-        )
-        {
-            return result;
-        }
+    private Guid? PromptTransactionId()
+    {
+        Guid id = Guid.Empty;
 
-        return null;
+        string input = _console.Prompt(
+            new TextPrompt<string>("[cyan]Transaction ID[/]:")
+                .AllowEmpty()
+                .Validate(s =>
+                    string.IsNullOrWhiteSpace(s) || Guid.TryParse(s, out id)
+                        ? ValidationResult.Success()
+                        : ValidationResult.Error("[red]That is not a valid ID.[/]")
+                )
+        );
+
+        return string.IsNullOrWhiteSpace(input) ? null : id;
     }
 
     private DateOnly? PromptDate(string label, DateOnly? earliest = null)
     {
+        DateOnly date = default;
+
         string input = _console.Prompt(
-            new TextPrompt<string>($"[yellow]{label}[/] [grey](yyyy-MM-dd)[/]:")
+            new TextPrompt<string>($"[cyan]{label}[/] [grey](yyyy-MM-dd)[/]:")
                 .AllowEmpty()
                 .Validate(s =>
                 {
@@ -373,7 +368,7 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
                             "yyyy-MM-dd",
                             CultureInfo.InvariantCulture,
                             DateTimeStyles.None,
-                            out DateOnly date
+                            out date
                         )
                     )
                     {
@@ -393,12 +388,7 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
                 })
         );
 
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return null;
-        }
-
-        return DateOnly.ParseExact(input, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return string.IsNullOrWhiteSpace(input) ? null : date;
     }
 
     private (DateOnly From, DateOnly To)? PromptDateRange()
