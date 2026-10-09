@@ -23,23 +23,18 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
     {
         _console.Clear();
         ShowIntro();
+
         while (true)
         {
-            MenuAction choice;
-
-            SelectionPrompt<MenuAction> prompt = new()
-            {
-                Title =
-                    "[bold cyan]What would you like to do?[/]\n[grey](↑/↓ to choose, Enter to select)[/]",
-            };
-            prompt.UseConverter(ActionLabel);
-
-            foreach (MenuAction action in Enum.GetValues<MenuAction>())
-            {
-                prompt.AddChoice(action);
-            }
-
-            choice = _console.Prompt(prompt);
+            MenuAction choice = _console.Prompt(
+                new SelectionPrompt<MenuAction>
+                {
+                    Title =
+                        "[bold cyan]What would you like to do?[/]\n[grey](↑/↓ to choose, Enter to select)[/]",
+                }
+                    .UseConverter(ActionLabel)
+                    .AddChoices(Enum.GetValues<MenuAction>())
+            );
 
             if (choice == MenuAction.Exit)
             {
@@ -67,6 +62,9 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
             catch (Exception ex)
             {
                 Error(ex.Message);
+            }
+            finally
+            {
                 _console.Write(new Rule());
             }
         }
@@ -85,7 +83,6 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
         if (type is null)
         {
             Cancelled();
-            _console.Write(new Rule());
             return;
         }
 
@@ -93,7 +90,6 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
         if (category is null)
         {
             Cancelled();
-            _console.Write(new Rule());
             return;
         }
 
@@ -101,7 +97,6 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
         if (description is null)
         {
             Cancelled();
-            _console.Write(new Rule());
             return;
         }
 
@@ -109,7 +104,6 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
         if (amount is null)
         {
             Cancelled();
-            _console.Write(new Rule());
             return;
         }
 
@@ -123,7 +117,6 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
         _console.MarkupLine(
             $"[green]Added[/] {added.Type} {(added.Type is TransactionType.Income ? "[green]" : "[red]")}{Money(added.Amount)}[/] - {Markup.Escape(added.Description)}"
         );
-        _console.Write(new Rule());
     }
 
     private void RemoveTransaction()
@@ -135,19 +128,16 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
         if (id is null)
         {
             Cancelled();
-            _console.Write(new Rule());
             return;
         }
 
         if (_transactionService.Remove(id.Value))
         {
             _console.MarkupLine($"[green]Removed[/] transaction [grey]{id}[/].");
-            _console.Write(new Rule());
         }
         else
         {
             Warn($"No transaction with ID {id} was found.");
-            _console.Write(new Rule());
         }
     }
 
@@ -220,7 +210,6 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
         if (PromptDateRange() is not { } range)
         {
             Cancelled();
-            _console.Write(new Rule());
             return null;
         }
 
@@ -231,7 +220,6 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
         if (result.Count == 0)
         {
             Warn("No transactions found in this range.");
-            _console.Write(new Rule());
             return null;
         }
 
@@ -387,7 +375,6 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
             )
         );
         _console.Write(table);
-        _console.Write(new Rule());
     }
 
     // Format helpers
