@@ -426,7 +426,7 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
             new TextPrompt<string>("[cyan]Description[/]:").AllowEmpty()
         );
 
-        return input.Length == 0 ? null : input.Trim();
+        return string.IsNullOrWhiteSpace(input) ? null : input.Trim();
     }
 
     private decimal? PromptAmount()
