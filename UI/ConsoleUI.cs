@@ -218,6 +218,7 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
 
         table.AddColumn(new TableColumn("[bold cyan]Date[/]"));
         table.AddColumn(new TableColumn("[bold cyan]Type[/]"));
+        table.AddColumn(new TableColumn("[bold cyan]Category[/]"));
         table.AddColumn(new TableColumn("[bold cyan]Description[/]"));
         table.AddColumn(new TableColumn("[bold cyan]Amount[/]").RightAligned());
         table.AddColumn(new TableColumn("[bold cyan]Id[/]"));
@@ -230,6 +231,7 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
             table.AddRow(
                 $"[grey]{DayAndTime(transaction.Timestamp)}[/]",
                 $"[{color}]{transaction.Type}[/]",
+                transaction.Category.ToString(),
                 Markup.Escape(transaction.Description),
                 $"[{color}]{Money(transaction.Amount)}[/]",
                 $"[grey]{transaction.Id}[/]"
