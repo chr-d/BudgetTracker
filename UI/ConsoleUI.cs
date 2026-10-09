@@ -79,14 +79,14 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
     {
         _console.Write(new Rule("[bold cyan]Add Transaction[/]"));
 
-        TransactionType? type = PromptType();
+        TransactionType? type = PromptEnum<TransactionType>("Type");
         if (type is null)
         {
             Cancelled();
             return;
         }
 
-        Category? category = PromptCategory();
+        Category? category = PromptEnum<Category>("Category");
         if (category is null)
         {
             Cancelled();
@@ -388,36 +388,16 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
         timestamp.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 
     // Prompt validation helpers
-    private TransactionType? PromptType()
+    private T? PromptEnum<T>(string label)
+        where T : struct, Enum
     {
-        SelectionPrompt<string> prompt = new() { Title = "[cyan]Type[/]" };
-
-        prompt.AddChoices([
-            .. Enum.GetValues<TransactionType>().Select(type => type.ToString()),
-            "Cancel",
-        ]);
+        SelectionPrompt<string> prompt = new() { Title = $"[cyan]{label}[/]" };
+        prompt.AddChoices([.. Enum.GetNames<T>(), "Cancel"]);
 
         string selected = _console.Prompt(prompt);
+        _console.MarkupLine($"[cyan]{label}[/]: {Markup.Escape(selected)}");
 
-        _console.MarkupLine($"[cyan]{prompt.Title}[/]: {Markup.Escape(selected)}");
-
-        return selected == "Cancel" ? null : Enum.Parse<TransactionType>(selected);
-    }
-
-    private Category? PromptCategory()
-    {
-        SelectionPrompt<string> prompt = new() { Title = "[cyan]Category[/]" };
-
-        prompt.AddChoices([
-            .. Enum.GetValues<Category>().Select(category => category.ToString()),
-            "Cancel",
-        ]);
-
-        string selected = _console.Prompt(prompt);
-
-        _console.MarkupLine($"[cyan]{prompt.Title}[/]: {Markup.Escape(selected)}");
-
-        return selected == "Cancel" ? null : Enum.Parse<Category>(selected);
+        return selected == "Cancel" ? null : Enum.Parse<T>(selected);
     }
 
     private string? PromptDescription()
