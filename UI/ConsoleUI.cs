@@ -15,6 +15,7 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
         AddTransaction,
         RemoveTransaction,
         RangeReport,
+        CategoryReport,
         Exit,
     }
 
@@ -58,6 +59,9 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
                     case MenuAction.RangeReport:
                         RangeReport();
                         break;
+                    case MenuAction.CategoryReport:
+                        CategoryReport();
+                        break;
                 }
             }
             catch (Exception ex)
@@ -75,7 +79,7 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
     // Menu actions
     private void AddTransaction()
     {
-        _console.Write(new Rule("[bold cyan]Add a transaction[/]"));
+        _console.Write(new Rule("[bold cyan]Add Transaction[/]"));
 
         TransactionType? type = PromptType();
         if (type is null)
@@ -124,7 +128,7 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
 
     private void RemoveTransaction()
     {
-        _console.Write(new Rule("[bold cyan]Remove a transaction[/]"));
+        _console.Write(new Rule("[bold cyan]Remove Transaction[/]"));
 
         Guid? id = PromptTransactionId();
 
@@ -149,30 +153,28 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
 
     private void RangeReport()
     {
-        _console.Write(new Rule("[bold cyan]Report for a date range[/]"));
-
-        if (PromptDateRange() is not { } range)
+        if (LoadReportData("Generate Report") is not { } data)
         {
-            Cancelled();
-            _console.Write(new Rule());
             return;
         }
 
-        (DateOnly from, DateOnly to) = range;
+        (IReadOnlyList<Transaction> rows, DateOnly from, DateOnly to) = data;
 
-        List<Transaction> rows = _transactionService.Query(from, to).ToList();
+        _console.Write(BuildTransactionTable(rows, $"Transactions from {Day(from)} to {Day(to)}"));
+        ShowTotals(rows);
+    }
 
-        if (rows.Count == 0)
+    private void CategoryReport()
+    {
+        if (LoadReportData("Generate Category Breakdown") is not { } data)
         {
-            Warn("No transactions found in this range.");
-            _console.Write(new Rule());
             return;
         }
 
-        string title = $"Transactions from {Day(from)} to {Day(to)}";
+        (IReadOnlyList<Transaction> rows, DateOnly from, DateOnly to) = data;
 
-        _console.WriteLine();
-        _console.Write(BuildTransactionTable(rows, title));
+        _console.Write(BuildCategoryTable(rows, $"By category from {Day(from)} to {Day(to)}"));
+        ShowBreakdownCharts(rows);
         ShowTotals(rows);
     }
 
@@ -180,9 +182,10 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
     private static string ActionLabel(MenuAction action) =>
         action switch
         {
-            MenuAction.AddTransaction => "Add transaction",
-            MenuAction.RemoveTransaction => "Remove transaction",
+            MenuAction.AddTransaction => "Add Transaction",
+            MenuAction.RemoveTransaction => "Remove Transaction",
             MenuAction.RangeReport => "Generate Report",
+            MenuAction.CategoryReport => "Generate Category Breakdown",
             _ => "Exit",
         };
 
@@ -207,6 +210,34 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
 
     private void Cancelled() => Warn("Cancelled by user - returning to the menu.");
 
+    // Report helpers
+    private (IReadOnlyList<Transaction> Rows, DateOnly From, DateOnly To)? LoadReportData(
+        string title
+    )
+    {
+        _console.Write(new Rule($"[bold cyan]{title}[/]"));
+
+        if (PromptDateRange() is not { } range)
+        {
+            Cancelled();
+            _console.Write(new Rule());
+            return null;
+        }
+
+        (DateOnly from, DateOnly to) = range;
+
+        IReadOnlyList<Transaction> result = _transactionService.Query(from, to).ToList();
+
+        if (result.Count == 0)
+        {
+            Warn("No transactions found in this range.");
+            _console.Write(new Rule());
+            return null;
+        }
+
+        return (result, from, to);
+    }
+
     private Table BuildTransactionTable(IReadOnlyList<Transaction> rows, string? title)
     {
         Table table = new() { Border = TableBorder.Rounded, BorderStyle = new Style(Color.Cyan) };
@@ -221,7 +252,7 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
         table.AddColumn(new TableColumn("[bold cyan]Category[/]"));
         table.AddColumn(new TableColumn("[bold cyan]Description[/]"));
         table.AddColumn(new TableColumn("[bold cyan]Amount[/]").RightAligned());
-        table.AddColumn(new TableColumn("[bold cyan]Id[/]"));
+        table.AddColumn(new TableColumn("[bold cyan]ID[/]"));
 
         foreach (Transaction transaction in rows)
         {
@@ -240,6 +271,93 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
 
         return table;
     }
+
+    private Table BuildCategoryTable(IReadOnlyList<Transaction> rows, string? title)
+    {
+        Table table = new() { Border = TableBorder.Rounded, BorderStyle = new Style(Color.Cyan) };
+
+        if (title is not null)
+        {
+            table.Title = new TableTitle($"[bold cyan]{Markup.Escape(title)}[/]");
+        }
+
+        table.AddColumn(new TableColumn("[bold cyan]Category[/]"));
+        table.AddColumn(new TableColumn("[bold cyan]Income[/]").RightAligned());
+        table.AddColumn(new TableColumn("[bold cyan]Expenses[/]").RightAligned());
+        table.AddColumn(new TableColumn("[bold cyan]Balance[/]").RightAligned());
+
+        foreach (var group in rows.GroupBy(t => t.Category).OrderBy(g => g.Key.ToString()))
+        {
+            decimal income = group.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount);
+
+            decimal expenses = group
+                .Where(t => t.Type == TransactionType.Expense)
+                .Sum(t => t.Amount);
+
+            decimal balance = income - expenses;
+
+            table.AddRow(
+                group.Key.ToString(),
+                income > 0 ? $"[green]{Money(income)}[/]" : "[grey]-[/]",
+                expenses > 0 ? $"[red]{Money(expenses)}[/]" : "[grey]-[/]",
+                balance >= 0 ? $"[green]{Money(balance)}[/]" : $"[red]-{Money(-balance)}[/]"
+            );
+        }
+
+        return table;
+    }
+
+    private void ShowBreakdownCharts(IReadOnlyList<Transaction> rows)
+    {
+        _console.Write(new Rule("[grey]Breakdown[/]"));
+
+        ShowBreakdownChart("Income", rows.Where(t => t.Type is TransactionType.Income));
+        _console.WriteLine();
+        ShowBreakdownChart("Expenses", rows.Where(t => t.Type is TransactionType.Expense));
+    }
+
+    private void ShowBreakdownChart(string label, IEnumerable<Transaction> transactions)
+    {
+        var slices = transactions
+            .GroupBy(t => t.Category)
+            .Select(group => new { Category = group.Key, Total = group.Sum(t => t.Amount) })
+            .OrderByDescending(slice => slice.Total)
+            .ToList();
+
+        if (slices.Count == 0)
+        {
+            Warn($"No {label.ToLowerInvariant()} in this range.");
+            return;
+        }
+
+        BreakdownChart chart = new() { Width = 60 };
+        chart.ShowPercentage();
+
+        var grandTotal = slices.Sum(s => s.Total);
+
+        foreach (var slice in slices)
+        {
+            var percent = grandTotal == 0 ? 0 : (double)Math.Round(slice.Total / grandTotal * 100);
+
+            chart.AddItem($"{slice.Category}", percent, CategoryColor(slice.Category));
+        }
+
+        _console.MarkupLine($"[bold]{label} by category[/]");
+        _console.Write(chart);
+    }
+
+    private static Color CategoryColor(Category category) =>
+        category switch
+        {
+            Category.Salary => Color.Green,
+            Category.Housing => Color.Tan,
+            Category.Food => Color.Yellow,
+            Category.Transport => Color.Cyan,
+            Category.Health => Color.DarkOrange,
+            Category.Shopping => Color.HotPink,
+            Category.Entertainment => Color.Violet,
+            _ => Color.Grey,
+        };
 
     private void ShowTotals(IReadOnlyList<Transaction> transactions)
     {
@@ -265,7 +383,7 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
             $"[bold]Balance[/]",
             string.Create(
                 CultureInfo.InvariantCulture,
-                $"[{balanceColor}]{(balance < 0 ? "-" : string.Empty)}{Math.Abs(balance):N2}€[/]"
+                $"[{balanceColor}]{(balance < 0 ? "-" : string.Empty)}{Money(Math.Abs(balance))}[/]"
             )
         );
         _console.Write(table);
