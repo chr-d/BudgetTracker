@@ -3,9 +3,9 @@ using BudgetTracker.Models;
 
 namespace BudgetTracker.Services;
 
-public class TransactionService(StorageService storage)
+public class TransactionService(IStorageService storage)
 {
-    private readonly StorageService _storage = storage;
+    private readonly IStorageService _storage = storage;
 
     public event EventHandler<TransactionAddedEventArgs>? TransactionAdded;
 

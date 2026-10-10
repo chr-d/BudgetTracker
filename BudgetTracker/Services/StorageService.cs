@@ -5,7 +5,7 @@ using BudgetTracker.Models;
 
 namespace BudgetTracker.Services;
 
-public class StorageService
+public class StorageService : IStorageService
 {
     private readonly string _dataDirectory;
 
