@@ -36,27 +36,51 @@ public class StorageService
 
     public IEnumerable<Transaction> LoadRange(DateOnly from, DateOnly to)
     {
-        return Directory
-            .EnumerateFiles(_dataDirectory, "????-??-??.json")
-            .Where(path =>
-                DateOnly.TryParseExact(
-                    Path.GetFileNameWithoutExtension(path),
-                    "yyyy-MM-dd",
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.None,
-                    out DateOnly day
+        try
+        {
+            return Directory
+                .EnumerateFiles(_dataDirectory, "????-??-??.json")
+                .Where(path =>
+                    DateOnly.TryParseExact(
+                        Path.GetFileNameWithoutExtension(path),
+                        "yyyy-MM-dd",
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.None,
+                        out DateOnly day
+                    )
+                    && day >= from
+                    && day <= to
                 )
-                && day >= from
-                && day <= to
-            )
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .Select(ReadFile)
-            .SelectMany(transactions => transactions);
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .Select(ReadFile)
+                .SelectMany(transactions => transactions);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new StorageException(
+                _dataDirectory,
+                $"Could not read '{_dataDirectory}' directory.",
+                ex
+            );
+        }
     }
 
     public bool RemoveById(Guid id)
     {
-        foreach (string path in Directory.GetFiles(_dataDirectory, "????-??-??.json"))
+        string[] filePaths = [];
+        try
+        {
+            filePaths = Directory.GetFiles(_dataDirectory, "????-??-??.json");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new StorageException(
+                _dataDirectory,
+                $"Could not read '{_dataDirectory}' directory.",
+                ex
+            );
+        }
+        foreach (string path in filePaths)
         {
             List<Transaction> transactions;
 
@@ -64,10 +88,9 @@ public class StorageService
             {
                 transactions = ReadFile(path);
             }
-            catch (Exception ex)
-                when (ex is IOException or UnauthorizedAccessException or JsonException)
+            catch (StorageException ex)
             {
-                Console.WriteLine($"Warning: could not read {path} - skipping it: {ex.Message}");
+                Console.WriteLine($"Warning: skipping {path}. Reason: {ex.Message}");
                 continue;
             }
 
@@ -88,12 +111,39 @@ public class StorageService
 
     private static List<Transaction> ReadFile(string path)
     {
-        string json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<List<Transaction>>(json, _jsonOptions) ?? [];
+        string json;
+        try
+        {
+            json = File.ReadAllText(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new StorageException(path, $"Could not read '{path}'.", ex);
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<Transaction>>(json, _jsonOptions) ?? [];
+        }
+        catch (JsonException ex)
+        {
+            throw new StorageException(
+                path,
+                $"'{Path.GetFileName(path)}' is damaged — fix it manually or delete it.",
+                ex
+            );
+        }
     }
 
     private static void WriteFile(string path, List<Transaction> transactions)
     {
-        File.WriteAllText(path, JsonSerializer.Serialize(transactions, _jsonOptions));
+        try
+        {
+            File.WriteAllText(path, JsonSerializer.Serialize(transactions, _jsonOptions));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new StorageException(path, $"Could not write '{path}'.", ex);
+        }
     }
 }

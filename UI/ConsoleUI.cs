@@ -59,9 +59,15 @@ public class ConsoleUI(IAnsiConsole console, TransactionService transactionServi
                         break;
                 }
             }
+            catch (StorageException ex)
+            {
+                Error(
+                    $"{ex.Message}\nOriginal error: {ex.InnerException?.GetType().Name}: {ex.InnerException?.Message}"
+                );
+            }
             catch (Exception ex)
             {
-                Error(ex.Message);
+                Error($"{ex.GetType().Name}: {ex.Message}");
             }
             finally
             {
