@@ -34,7 +34,7 @@ public class StorageService
         WriteFile(path, transactions);
     }
 
-    public IEnumerable<Transaction> LoadRange(DateOnly from, DateOnly to)
+    public IReadOnlyList<Transaction> LoadRange(DateOnly from, DateOnly to)
     {
         try
         {
@@ -53,7 +53,8 @@ public class StorageService
                 )
                 .OrderBy(path => path, StringComparer.Ordinal)
                 .Select(ReadFile)
-                .SelectMany(transactions => transactions);
+                .SelectMany(transactions => transactions)
+                .ToList();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
