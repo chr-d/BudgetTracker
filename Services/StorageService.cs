@@ -91,7 +91,9 @@ public class StorageService
             }
             catch (StorageException ex)
             {
-                Console.WriteLine($"Warning: skipping {path}. Reason: {ex.Message}");
+                Console.WriteLine(
+                    $"Warning: Skipping file '{path}'. Reason: {ex.GetType().Name}: {ex.Message}"
+                );
                 continue;
             }
 

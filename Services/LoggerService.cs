@@ -26,7 +26,9 @@ public class LoggerService
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Console.WriteLine($"Warning: could not write to {_logFilePath}: {ex.Message}");
+            Console.WriteLine(
+                $"Warning: Could not write logs to '{_logFilePath}' Reason: {ex.GetType().Name}: {ex.Message}"
+            );
         }
     }
 }
