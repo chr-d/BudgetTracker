@@ -6,6 +6,18 @@ classDiagram
         Expense
     }
 
+    class Category {
+        <<enumeration>>
+        Salary
+        Food
+        Shopping
+        Entertainment
+        Health
+        Housing
+        Transport
+        Other
+    }
+
     class Transaction {
         +Guid Id
         +DateTimeOffset Timestamp
@@ -19,30 +31,77 @@ classDiagram
         +Transaction Transaction
     }
 
-    class StorageService {
-        -string dataDirectory
+    class IStorageService {
+        <<interface>>
         +SaveTransaction(Transaction) void
-        +LoadRange(DateOnly, DateOnly) IEnumerable~Transaction~
+        +LoadRange(DateOnly, DateOnly) IReadOnlyList~Transaction~
+        +RemoveById(Guid) bool
+    }
+
+    class StorageException {
+        +string FilePath
+    }
+
+    class StorageService {
+        -string _dataDirectory
+        -JsonSerializerOptions _jsonOptions
+        +StorageService(string)
+        +SaveTransaction(Transaction) void
+        +LoadRange(DateOnly, DateOnly) IReadOnlyList~Transaction~
         +RemoveById(Guid) bool
     }
 
     class TransactionService {
-        -StorageService storage
+        -IStorageService _storage
         +TransactionAdded event
+        +TransactionService(IStorageService)
         +Add(TransactionType, string, decimal, Category) Transaction
         +Remove(Guid) bool
         +Query(DateOnly, DateOnly) IEnumerable~Transaction~
     }
 
     class LoggerService {
-        -string logFilePath
+        -string _logFilePath
         +LoggerService(TransactionService, string)
-        -OnTransactionAdded(object?, TransactionAddedEventArgs) void
     }
 
-    TransactionService --> StorageService : uses
+    class MenuAction {
+        <<enumeration>>
+        AddTransaction
+        RemoveTransaction
+        RangeReport
+        CategoryReport
+        Exit
+    }
+
+    class ConsoleUI {
+        -IAnsiConsole _console
+        -TransactionService _transactionService
+        +ConsoleUI(IAnsiConsole, TransactionService)
+        +Run() void
+    }
+
+    class Program {
+        <<entry point>>
+        +Main() void
+    }
+
+    Program ..> StorageService : creates
+    Program ..> TransactionService : creates
+    Program ..> LoggerService : creates
+    Program ..> ConsoleUI : creates & runs
+
+    StorageService ..|> IStorageService : implements
+    StorageException --|> Exception : extends
+    TransactionService --> IStorageService : uses
     TransactionService ..> Transaction : creates
     TransactionService ..> TransactionAddedEventArgs : raises
-    LoggerService ..> TransactionService : subscribes
-    StorageService ..> Transaction : JSON Serialisation
-    Transaction --> TransactionType : uses
+    LoggerService --> TransactionService : subscribes (TransactionAdded)
+    StorageService ..> Transaction : JSON serialisation
+    StorageService ..> StorageException : throws
+    Transaction --> TransactionType
+    Transaction --> Category
+
+    ConsoleUI --> TransactionService : calls
+    ConsoleUI ..> Transaction : reads
+    ConsoleUI ..> MenuAction : uses
