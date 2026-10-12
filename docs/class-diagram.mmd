@@ -96,6 +96,7 @@ classDiagram
     TransactionService --> IStorageService : uses
     TransactionService ..> Transaction : creates
     TransactionService ..> TransactionAddedEventArgs : raises
+    TransactionAddedEventArgs --|> EventArgs : extends
     LoggerService --> TransactionService : subscribes (TransactionAdded)
     StorageService ..> Transaction : JSON serialisation
     StorageService ..> StorageException : throws
